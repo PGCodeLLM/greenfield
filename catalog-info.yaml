@@ -1,0 +1,14 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: greenfield
+  description: "Claude Code plugin that reverse-engineers clean behavioral specs, test vectors, and acceptance criteria from any codebase with a provenance trail."
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    prime-radiant.com/repo-map-rev: "ab79e46cc42b5ec13e413b6c1940479321aac260"
+  tags: [claude-code-plugin, reverse-engineering]
+spec:
+  type: tool
+  lifecycle: production
+  owner: unknown
+  system: superpowers
