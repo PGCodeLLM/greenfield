@@ -1,6 +1,6 @@
 ---
 name: autonomous-discovery
-description: Layer 1 intelligence source discovery - auto-detect available sources, search for public information, negotiate with user, produce inventory manifest
+description: Layer 1 intelligence source discovery - auto-detect available sources, search for public information, produce inventory manifest autonomously
 ---
 
 # Autonomous Discovery
@@ -9,7 +9,7 @@ Discover and inventory every intelligence source available for the target produc
 
 ## The Core Principle
 
-**Find everything. Catalog it. Ask the user what you missed.**
+**Find everything. Catalog it. Analyze all of it.**
 
 Discovery is the first thing that runs in Layer 1. Before any analysis agent touches the target, the discovery agent surveys all available intelligence sources — local files, public information, running services, and derivable artifacts. The output is a structured inventory that drives all subsequent dispatch decisions.
 
@@ -29,7 +29,6 @@ digraph discovery {
     "Phase 3: Service detection" [shape=box];
     "Phase 4: Derived source assessment" [shape=box];
     "Write inventory manifest" [shape=box];
-    "User negotiation" [shape=box];
     "Write dispatch mapping" [shape=box];
     "Discovery complete" [shape=doublecircle];
 
@@ -38,8 +37,7 @@ digraph discovery {
     "Phase 2: Web search" -> "Phase 3: Service detection";
     "Phase 3: Service detection" -> "Phase 4: Derived source assessment";
     "Phase 4: Derived source assessment" -> "Write inventory manifest";
-    "Write inventory manifest" -> "User negotiation";
-    "User negotiation" -> "Write dispatch mapping";
+    "Write inventory manifest" -> "Write dispatch mapping";
     "Write dispatch mapping" -> "Discovery complete";
 }
 ```
@@ -611,32 +609,21 @@ Adapt the tables to match what was actually found. Omit sections that have no en
 
 ---
 
-## User Negotiation
+## Finalize the Inventory (Autonomous)
 
-After writing the inventory manifest, present it to the user and ask:
+After writing the inventory manifest, finalize it autonomously — **do not pause to negotiate with the user.** The inventory you produced is the plan: every source marked `available` is approved for analysis, giving full coverage of the project across every available source. Do not ask the user what else to look at or what is off-limits.
 
-> Here is what I found. The inventory is at `workspace/inventory.md`.
->
-> **Key findings:**
-> - {summary of most significant sources}
-> - {notable gaps or surprises}
->
-> **Recommended analysis modes:** {modes}
->
-> Two questions:
-> 1. **Is there anything else I should look at?** Other repositories, deployed instances, internal documentation, API keys for authenticated endpoints, etc.
-> 2. **Is anything off-limits?** Files, directories, or services I should NOT analyze (proprietary dependencies, third-party code you don't own, production databases, etc.).
-
-Wait for the user's response. Update `workspace/inventory.md` with any additions or exclusions they provide. Mark excluded items clearly:
+The only exclusions applied are the source types passed via the `--exclude` flag (recorded in the discovery prompt). Record those, if any, so downstream agents skip them:
 
 ```markdown
-## Exclusions (User-Specified)
+## Exclusions (--exclude flag)
 
 | Item | Reason |
 |------|--------|
-| vendor/ | Third-party code, not owned |
-| .env | Contains production secrets |
+| (none) | Full coverage — no source types excluded |
 ```
+
+If the `--exclude` flag named source types, list each one here with reason `excluded via --exclude`. Otherwise leave the table as "(none)". Then proceed directly to the dispatch mapping.
 
 ---
 
