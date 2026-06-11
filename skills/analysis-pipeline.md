@@ -99,7 +99,7 @@ Layer 1 auto-discovers available intelligence sources and consumes all of them b
 
 Sources are auto-discovered. Use `--exclude` to skip specific source types.
 
-Sources are excluded only by `--exclude` flag or user request during discovery negotiation.
+Sources are excluded only by the `--exclude` flag. Discovery runs autonomously and adopts the full inventory without user negotiation.
 
 ## Source Coverage
 
