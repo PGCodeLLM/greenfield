@@ -8,12 +8,44 @@ Greenfield is a [Claude Code](https://claude.com/claude-code) plugin. It runs in
 
 ## Installation
 
+This repository is both a Claude Code **plugin** and a single-plugin **marketplace** (see `.claude-plugin/marketplace.json`), so you can install it straight from this GitHub fork:
+
+```bash
+/plugin marketplace add PGCodeLLM/greenfield
+/plugin install greenfield@greenfield-fork
+```
+
+Restart Claude Code after installing.
+
+If you previously installed greenfield from the upstream marketplace, remove that copy first — otherwise two plugins named `greenfield` register the same skills:
+
+```bash
+/plugin uninstall greenfield@prime-radiant-marketplace
+```
+
+### Pin to a branch, or install from a local clone
+
+```bash
+# Pin the marketplace to a specific branch (defaults to the repo's default branch)
+/plugin marketplace add PGCodeLLM/greenfield@main
+
+# Local development: add a clone on disk as the marketplace
+/plugin marketplace add /path/to/greenfield
+/plugin install greenfield@greenfield-fork
+```
+
+> **Updating:** `plugin.json` pins `version`, which does not change per commit, so `/plugin update` may not pick up new commits on the fork. After pushing changes, bump `version` in `.claude-plugin/plugin.json`, or simply `/plugin uninstall greenfield@greenfield-fork` and reinstall.
+
+### Upstream
+
+This is a fork of [`prime-radiant-inc/greenfield`](https://github.com/prime-radiant-inc/greenfield), installable from its marketplace:
+
 ```bash
 /plugin marketplace add prime-radiant-inc/prime-radiant-marketplace
 /plugin install greenfield@prime-radiant-marketplace
 ```
 
-Restart Claude Code after installing.
+This fork's `/analyze` runs fully autonomously (no confirmation prompts) and stops after Layers 1–4 by default; see Usage below.
 
 ## Usage
 
@@ -24,7 +56,7 @@ claude
 > /analyze /path/to/target
 ```
 
-`/analyze` runs a seven-layer pipeline. It discovers the available intelligence sources (source, docs, SDK, community, runtime, binary, git history, tests, UI, contracts), gathers evidence from each, synthesizes behavioral specs with provenance citations, generates test vectors and acceptance criteria, sanitizes the specs of implementation details, then runs a second-pass review of the result.
+`/analyze` runs a seven-layer pipeline, fully autonomously — it never stops to ask which sources, layers, or scope to run. It discovers the available intelligence sources (source, docs, SDK, community, runtime, binary, git history, tests, UI, contracts), gathers evidence from each, synthesizes behavioral specs with provenance citations, then generates test vectors and acceptance criteria. **By default it stops after Layers 1–4**, leaving the raw specs (with full provenance) in `workspace/raw/specs/` as the deliverable. Layers 5–7 (sanitization → second-pass review → fidelity check) are not run automatically; produce source-free specs by running `/sanitize` on the workspace when you need them.
 
 Target shape doesn't matter. Greenfield has been used on single-file minified JavaScript bundles and on source-tree projects; the pipeline also has a path for decompiled native binaries. The methodology adapts to what's there.
 
