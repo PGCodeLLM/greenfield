@@ -195,4 +195,4 @@ After incremental analysis completes, append to the `run_history` array in `work
 - **analysis-pipeline**: Master methodology; incremental analysis modifies which specs enter the pipeline, not the pipeline itself
 - **source-analysis**: Layer 1 source analysis; dispatched for stale and new specs during incremental runs
 - **validation-methodology**: Gates 1-2 run on the full set regardless of incremental vs fresh
-- **spec-sanitization**: Layers 5-7 always run on everything; incremental savings come from Layers 1-3 only
+- **spec-sanitization**: Layers 5-7 are not part of the default flow, but when run they process everything; incremental savings come from Layers 1-3 only

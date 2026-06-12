@@ -172,6 +172,11 @@ Layer 4: Test & Validation  → analyzer × 3 roles (test vectors, test specs, a
          ↓
 Gate 2:  Review             → analyzer as spec-reviewer (remediation loop, up to 3 attempts)
          ↓
+═══ DEFAULT STOP ═══  Pipeline concludes here. Raw specs in workspace/raw/specs/
+                      are the deliverable. Layers 5–7 are NOT run by default.
+         ┆ (Layers 5–7 below run only when source-free specs are explicitly
+         ┆  requested — e.g. via the standalone /sanitize command)
+         ↓
 Layer 5: Sanitization       → sanitizer × N (one per domain group, REWRITE not copy)
          ↓
 Layer 6: Second-Pass Review →  Phase 1: analyzer × 3 (semantic structural, content, completeness)
@@ -295,7 +300,7 @@ Compute the count from the adopted inventory. The bundle-splitter's chunk count 
 
 ```
 ========================================================================
-Pre-flight dispatch count (Layers 1–7, full pipeline):
+Pre-flight dispatch count (Layers 1–4, the default pipeline):
 
   Layer 1 (Intelligence)
     - 1 discovery agent (already ran)
@@ -319,7 +324,9 @@ Pre-flight dispatch count (Layers 1–7, full pipeline):
   Layer 4 (Validation):      3 agents
   Gate 2:                    1 agent + up to 3 remediation rounds
 
-  Layers 5–7 (always run after Gate 2):
+  Layers 5–7 are NOT run by default (the pipeline stops after Gate 2 with
+  raw specs). They run only when source-free specs are explicitly requested
+  — e.g. via the standalone /sanitize command:
     Layer 5 (Sanitization):   1 sanitizer per domain group + contamination
                               judges (batched 4–5 files each)
     Layer 6 (Second-Pass):    3 semantic reviewers + deep-read auditors
@@ -332,7 +339,7 @@ Pre-flight dispatch count (Layers 1–7, full pipeline):
 ========================================================================
 ```
 
-This count is informational. **Proceed automatically** — do not wait for confirmation. The full pipeline always runs end to end.
+This count is informational. **Proceed automatically** — do not wait for confirmation. The default pipeline runs Layers 1–4 end to end without stopping.
 
 ---
 
@@ -934,7 +941,7 @@ done
 
 ---
 
-## Checkpoint: Layers 1–4 Complete → Continue to Sanitization
+## Default Stop: Layers 1–4 Complete
 
 Layers 1–4 are complete. Gate 2 has signed off. The workspace now contains:
 
@@ -944,15 +951,15 @@ Layers 1–4 are complete. Gate 2 has signed off. The workspace now contains:
 - Test vectors and acceptance criteria (`workspace/raw/specs/test-vectors/`, `validation/`)
 - Source-completeness verified (Gate 1b) and quality reviewed (Gate 2)
 
-These raw specs (with full provenance) are preserved in `workspace/raw/specs/` regardless of what follows — every behavioral claim keeps its `<!-- cite: source/file:L42-L58 -->` pointer back to the source.
+**This is the default deliverable, and the pipeline stops here.** The raw specs carry full provenance — every behavioral claim keeps its `<!-- cite: source/file:L42-L58 -->` pointer back to the source, so you can grep any identifier and find where it lives. For most uses this is the most useful artifact.
 
-**The pipeline always continues through Layers 5–7.** Sanitization (Layer 5) rewrites every raw spec from behavioral understanding into source-free output specs, second-pass review (Layer 6) audits them for residual contamination, and fidelity validation (Layer 7) confirms no behavioral detail was lost. This produces specs an implementor can use without seeing the source, written to `workspace/output/`. The raw specs in `workspace/raw/` remain available alongside the sanitized output, so nothing is lost by running the full pipeline.
-
-**Do not stop here and do not ask the user whether to sanitize.** Tag the raw-spec milestone and proceed directly to Layer 5 — every subsequent layer runs:
+Tag the milestone, then skip directly to **Print Summary** and exit 0:
 
 ```bash
-git tag -a analysis-raw-complete -m "Layers 1-4 complete: raw specs with provenance (continuing to sanitization)"
+git tag -a analysis-complete-raw -m "Analysis complete: raw specs with provenance (Layers 1-4)"
 ```
+
+**Do not prompt the user about sanitization, and do not run Layers 5–7 as part of the default flow.** Layers 5–7 (Sanitization, Second-Pass Review, Fidelity Validation) remain documented below — they rewrite the raw specs into source-free output specs in `workspace/output/` for cases where an implementor cannot see the source (clean-room separation, legal/compliance handoff). They run **only when source-free specs are explicitly requested** — most directly via the standalone `/sanitize` command, which takes this workspace and runs the sanitization pass on its own. The default `/analyze` run does not enter them.
 
 ---
 
@@ -1246,7 +1253,25 @@ git tag -a fidelity-check-complete -m "Layer 7: Fidelity validation passed (N cl
 
 ## Print Summary
 
-After pipeline completion (or failure), print a summary. The full pipeline always runs through Layers 5–7, so the summary reflects the complete path:
+After pipeline completion (or failure), print a summary. The default `/analyze` run stops after Layers 1–4, so the summary reflects the raw-spec path:
+
+```
+=== ANALYSIS SUMMARY ===
+Target:            <target-name>
+Workspace:         <workspace-path>
+Sources analyzed:  source, docs, sdk, community, git-history, tests
+Sources skipped:   runtime (no container runtime), binary (no binaries found)
+Agents dispatched: N
+Gate 1:            PASS
+Gate 1b:           PASS
+Gate 2:            PASS
+Sanitization:      NOT RUN (Layers 5–7 are not part of the default flow)
+Output:            workspace/raw/specs/ (with provenance citations)
+Next steps:        Use raw/specs/ directly. To produce source-free specs,
+                   run /sanitize on this workspace (Layers 5–7).
+```
+
+If Layers 5–7 were run (via `/sanitize` or an explicit source-free request), the summary instead reflects the full path:
 
 ```
 === ANALYSIS SUMMARY ===
@@ -1295,7 +1320,16 @@ Next steps:         Hand off workspace/output/ to the implementation team
 
 ## AFTER ANALYSIS
 
-The full pipeline (Layers 1–7) always runs to completion. After it finishes:
+### Default path (Layers 1–4)
+
+The default `/analyze` run stops after Layer 4. After it finishes:
+
+1. Verify `analysis-complete-raw` tag exists.
+2. Verify `workspace/raw/specs/` contains module specs, journeys, contracts, test vectors, and acceptance criteria.
+3. The raw specs are the deliverable. Provenance citations point back to source.
+4. No Layer 5/6/7 artifacts exist — `workspace/output/` is empty or absent. To produce source-free specs, run `/sanitize` on this workspace.
+
+### If Layers 5–7 were run (via `/sanitize` or an explicit source-free request)
 
 1. Verify `review-complete` tag exists (Layer 6 second-pass review passed — semantic review + deep-read)
 2. Verify `fidelity-check-complete` tag exists (Layer 7 fidelity validation — no P0 behaviors lost)
