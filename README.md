@@ -54,8 +54,10 @@ This fork's `/analyze` runs fully autonomously (no confirmation prompts) and sto
 
 ```bash
 claude
-> /analyze /path/to/target
+> /analyze /path/to/target   # or just /analyze to analyze the current directory
 ```
+
+The target path is optional — when omitted, `/analyze` analyzes the current working directory.
 
 `/analyze` runs a seven-layer pipeline, fully autonomously — it never stops to ask which sources, layers, or scope to run. It discovers the available intelligence sources (source, docs, SDK, community, runtime, binary, git history, tests, UI, contracts), gathers evidence from each, synthesizes behavioral specs with provenance citations, then generates test vectors and acceptance criteria. **By default it stops after Layers 1–4**, leaving the raw specs (with full provenance) in `workspace/raw/specs/` as the deliverable. Layers 5–7 (sanitization → second-pass review → fidelity check) are not run automatically; produce source-free specs by running `/sanitize` on the workspace when you need them.
 
@@ -72,6 +74,36 @@ workspace/
 │   └── validation/
 └── provenance/  # Citation audit trail
 ```
+
+### Run headless (non-interactive, from the shell)
+
+Because `/analyze` runs fully autonomously, you can launch it straight from the shell with Claude Code's print mode (`-p`) instead of opening the TUI:
+
+```bash
+IS_SANDBOX=1 claude -p "/greenfield:analyze /path/to/target" \
+  --dangerously-skip-permissions \
+  --max-turns 1000 \
+  --verbose \
+  2>&1 | tee ~/greenfield-analyze-$(date +%s).log
+```
+
+Omit the path to analyze the current directory:
+
+```bash
+IS_SANDBOX=1 claude -p "/greenfield:analyze" --dangerously-skip-permissions --max-turns 1000 --verbose
+```
+
+What the flags do, and why they're needed:
+
+| Flag | Why |
+|------|-----|
+| `-p "…"` | Print mode: run the command once, non-interactively, and exit. |
+| `IS_SANDBOX=1` | Marks the environment as a sandbox so `--dangerously-skip-permissions` is permitted (e.g. when running as root / in a container). |
+| `--dangerously-skip-permissions` | The pipeline runs lots of varied Bash (git, `find`/`grep`, `npx js-beautify`, optionally `docker`/`podman`, and the target's own test suite) and spawns dozens of subagents. In print mode any un-approved action is denied silently, so a hand-written allowlist is impractical — this skips the prompts entirely. |
+| `--max-turns 1000` | The pipeline is many turns (dispatch → commit → gate → remediate → …). A low cap would cut a real run off mid-pipeline; 1000 leaves ample headroom (it still self-terminates at its gates). |
+| `--verbose` | Print mode buffers by default; this streams turn-by-turn progress. Add `--output-format stream-json` if you want structured events. |
+
+> ⚠️ **Safety:** `--dangerously-skip-permissions` lets the run execute arbitrary commands — greenfield is "run code to understand code". Only use it on a target you trust, ideally in a throwaway directory, VM, or container. The workspace and its git repo are written into the **current directory**; if the target lives elsewhere, `cd` into a clean working directory first (and add `--add-dir /path/to/target` if the target is outside it).
 
 ### Re-sanitize an existing workspace
 

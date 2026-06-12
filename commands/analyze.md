@@ -3,8 +3,9 @@ name: analyze
 description: Reverse engineer a codebase into the output behavioral specs with provenance
 arguments:
   - name: path
-    description: Path to the target (source code, bundle, binary, or installed software)
-    required: true
+    description: Path to the target (source code, bundle, binary, or installed software). Defaults to the current working directory when omitted.
+    required: false
+    default: . (current working directory)
   - name: --exclude
     description: >
       Comma-separated list of source types to exclude from analysis.
@@ -61,6 +62,7 @@ Agents MUST use the Read tool on every source file. Head/tail samples are not en
 ## CLI INTERFACE
 
 ```
+/analyze                                   # Analyze the current working directory (default)
 /analyze path                              # Discover and consume everything available
 /analyze path --exclude source             # Black-box analysis (skip source code)
 /analyze path --exclude git-history,tests  # Skip git mining and test suite analysis
@@ -194,8 +196,13 @@ Layer 7: Fidelity Check     → analyzer × N (cross-validate raw vs output for 
 Validate all arguments before any work begins.
 
 ```bash
+# Default the target path to the current working directory when no path argument is given.
+# (Strip any flags like --exclude/--workspace first; if what remains is empty, use ".".)
+TARGET="${ARGUMENTS:-.}"
+[ -z "$TARGET" ] && TARGET="."
+
 # Validate path exists
-[ -d "$ARGUMENTS" ] || [ -f "$ARGUMENTS" ] || { echo "ERROR: Target path does not exist: $ARGUMENTS"; exit 2; }
+[ -d "$TARGET" ] || [ -f "$TARGET" ] || { echo "ERROR: Target path does not exist: $TARGET"; exit 2; }
 
 # Validate --exclude (if provided)
 # Valid values: source, docs, sdk, community, runtime, binary, git-history, tests, visual, contracts
