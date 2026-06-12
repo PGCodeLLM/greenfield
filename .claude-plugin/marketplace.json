@@ -1,0 +1,17 @@
+{
+  "name": "greenfield-fork",
+  "description": "PGCodeLLM fork of the greenfield plugin (autonomous, non-interactive /analyze).",
+  "owner": {
+    "name": "PGCodeLLM"
+  },
+  "plugins": [
+    {
+      "name": "greenfield",
+      "description": "Reverse engineer clean behavioral specs from any codebase.",
+      "source": "./",
+      "author": {
+        "name": "PGCodeLLM"
+      }
+    }
+  ]
+}
