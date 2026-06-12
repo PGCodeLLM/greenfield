@@ -79,6 +79,13 @@ digraph pipeline {
 }
 ```
 
+> **Default flow stops after Gate 2 (Layers 1–4).** The diagram above shows the
+> complete methodology including sanitization, but a default `/analyze` run ends
+> with the raw specs in `workspace/raw/specs/`. Layers 5–7 (Sanitization,
+> Second-Pass Review, Fidelity) are not run automatically — they run only when
+> source-free specs are explicitly requested, most directly via the standalone
+> `/sanitize` command.
+
 ## Intelligence Sources
 
 Layer 1 auto-discovers available intelligence sources and consumes all of them by default:
@@ -99,7 +106,7 @@ Layer 1 auto-discovers available intelligence sources and consumes all of them b
 
 Sources are auto-discovered. Use `--exclude` to skip specific source types.
 
-Sources are excluded only by `--exclude` flag or user request during discovery negotiation.
+Sources are excluded only by the `--exclude` flag. Discovery runs autonomously and adopts the full inventory without user negotiation.
 
 ## Source Coverage
 

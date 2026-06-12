@@ -172,8 +172,11 @@ Layer 4: Test & Validation  → analyzer × 3 roles (test vectors, test specs, a
          ↓
 Gate 2:  Review             → analyzer as spec-reviewer (remediation loop, up to 3 attempts)
          ↓
-Decision Point:             → Ask user: stop here with raw specs, or sanitize?
-         ↓ (only if user opts in)
+═══ DEFAULT STOP ═══  Pipeline concludes here. Raw specs in workspace/raw/specs/
+                      are the deliverable. Layers 5–7 are NOT run by default.
+         ┆ (Layers 5–7 below run only when source-free specs are explicitly
+         ┆  requested — e.g. via the standalone /sanitize command)
+         ↓
 Layer 5: Sanitization       → sanitizer × N (one per domain group, REWRITE not copy)
          ↓
 Layer 6: Second-Pass Review →  Phase 1: analyzer × 3 (semantic structural, content, completeness)
@@ -280,24 +283,24 @@ Dispatch `greenfield:analyzer`:
 - Prompt: "Role: discovery-agent. Follow the **autonomous-discovery skill**. Target: `<target-path>`. Workspace: `<workspace-path>`. Excluded types: `<--exclude value or 'none'>`. Probe the target for all available intelligence sources: source code, documentation, SDK/package presence, community content, runtime executability, binary artifacts, git history, test suites, visual UI, and machine-readable contracts. Write an inventory to `workspace/inventory.md` listing each source type, its availability (available/unavailable/excluded), and a brief rationale."
 - Commit: `[L1:discovery] Intelligence source inventory`
 
-### 2b: Present inventory for negotiation
+### 2b: Adopt the discovery inventory
 
-After the discovery agent returns, read `workspace/inventory.md` and present the inventory to the user. The user may approve the plan, exclude additional sources, or override unavailability judgments. Update `workspace/inventory.md` with the negotiated plan and commit:
+After the discovery agent returns, read `workspace/inventory.md`. The discovered inventory **is** the plan — adopt it as-is and run autonomously. Every source the discovery agent marked `available` is approved; the only sources skipped are those marked `excluded` (via the `--exclude` flag) or `unavailable` (genuinely absent). Do **not** stop to ask the user to approve, narrow, or override the inventory — analyze the full project across every available source. Commit the inventory and proceed:
 
 ```bash
 git add workspace/inventory.md
-git commit -m "[L1:discovery] Negotiated intelligence source plan"
+git commit -m "[L1:discovery] Intelligence source plan (full coverage, autonomous)"
 ```
 
 ### 2c: Pre-flight Dispatch Count
 
-Before the fan-out begins, print a count of the agent dispatches this run will attempt, based on the approved source types in `workspace/inventory.md`. This is NOT a budget or a dollar estimate — we can't predict token usage, dollar cost, or precise wall-clock from the orchestrator side. It is a structural count so the user knows whether the run is 10 agents or 100.
+Before the fan-out begins, print a count of the agent dispatches this run will attempt, based on the approved source types in `workspace/inventory.md`. This is NOT a budget or a dollar estimate — we can't predict token usage, dollar cost, or precise wall-clock from the orchestrator side. It is a structural count printed purely for visibility — it is informational and the run proceeds automatically.
 
-Compute the count from the negotiated inventory. The bundle-splitter's chunk count is known only after it runs, so Layer 1's `source` line is the only number with a wide range; everything else is deterministic from the inventory.
+Compute the count from the adopted inventory. The bundle-splitter's chunk count is known only after it runs, so Layer 1's `source` line is the only number with a wide range; everything else is deterministic from the inventory.
 
 ```
 ========================================================================
-Pre-flight dispatch count (Layers 1–4, before sanitization decision point):
+Pre-flight dispatch count (Layers 1–4, the default pipeline):
 
   Layer 1 (Intelligence)
     - 1 discovery agent (already ran)
@@ -321,7 +324,9 @@ Pre-flight dispatch count (Layers 1–4, before sanitization decision point):
   Layer 4 (Validation):      3 agents
   Gate 2:                    1 agent + up to 3 remediation rounds
 
-  If you opt in to Layers 5–7 at the decision point after Gate 2:
+  Layers 5–7 are NOT run by default (the pipeline stops after Gate 2 with
+  raw specs). They run only when source-free specs are explicitly requested
+  — e.g. via the standalone /sanitize command:
     Layer 5 (Sanitization):   1 sanitizer per domain group + contamination
                               judges (batched 4–5 files each)
     Layer 6 (Second-Pass):    3 semantic reviewers + deep-read auditors
@@ -330,13 +335,11 @@ Pre-flight dispatch count (Layers 1–4, before sanitization decision point):
 
   Token usage, dollar cost, and wall-clock depend on target size,
   language, source quality, and how many remediation rounds the gates
-  need — the orchestrator can't predict them. If your session budget is
-  tight, narrow the inventory via --exclude and/or decline Layers 5–7 at
-  the decision point.
+  need — the orchestrator can't predict them.
 ========================================================================
 ```
 
-Ask the user to confirm. On `y`, proceed. On `n`, stop with exit 0 and leave the workspace in place (discovery output is preserved; user can resume with `/analyze` later).
+This count is informational. **Proceed automatically** — do not wait for confirmation. The default pipeline runs Layers 1–4 end to end without stopping.
 
 ---
 
@@ -938,7 +941,7 @@ done
 
 ---
 
-## Decision Point: Stop Here or Sanitize?
+## Default Stop: Layers 1–4 Complete
 
 Layers 1–4 are complete. Gate 2 has signed off. The workspace now contains:
 
@@ -948,75 +951,15 @@ Layers 1–4 are complete. Gate 2 has signed off. The workspace now contains:
 - Test vectors and acceptance criteria (`workspace/raw/specs/test-vectors/`, `validation/`)
 - Source-completeness verified (Gate 1b) and quality reviewed (Gate 2)
 
-**This is already the most useful artifact for most users.** Every behavioral claim carries a `<!-- cite: source/file:L42-L58 -->` pointer back to the source. You can grep for any identifier and find where it lives.
+**This is the default deliverable, and the pipeline stops here.** The raw specs carry full provenance — every behavioral claim keeps its `<!-- cite: source/file:L42-L58 -->` pointer back to the source, so you can grep any identifier and find where it lives. For most uses this is the most useful artifact.
 
-**Layers 5–7 exist for a narrower purpose: producing specs an implementor can use without seeing the source.** They strip every source identifier, internal name, and provenance citation from the specs, rewriting them from understanding so an implementor with zero source access can rebuild the product. Typical reasons to run them:
-
-1. The implementor cannot legally see the source (e.g., clean-room legal separation, external audit, compliance).
-2. You want to rewrite from scratch with zero code-bias from the original.
-3. You're handing the spec to a third party who must not learn your internals.
-
-**Costs of running Layers 5–7:**
-
-- Additional agent dispatches and wall-clock time.
-- Output is smaller (provenance citations and internal examples are removed).
-- Citation traceability is lost in `workspace/output/` — you lose the ability to grep-to-source.
-- Every round of sanitization must be second-pass-reviewed (Layer 6) and fidelity-validated (Layer 7), so contamination disputes add more rounds.
-
-### Ask the user
-
-```
-echo ""
-echo "========================================================================"
-echo "Layers 1–4 complete. Raw specs with full provenance are at:"
-echo "  $WORKSPACE/raw/specs/"
-echo ""
-echo "You can stop here and use those directly, or continue to Layers 5–7 to"
-echo "produce sanitized specs (implementation details stripped, provenance"
-echo "removed)."
-echo ""
-echo "Run Layers 5–7 (sanitization + second-pass review + fidelity)?"
-echo "  [y]   yes, produce sanitized specs in $WORKSPACE/output/"
-echo "  [n]   no, stop here with raw specs (default)"
-echo "  [?]   explain what sanitization does and when I need it"
-echo "========================================================================"
-```
-
-Use the **AskUserQuestion** tool to present this choice. Include a third option for explanation if the user is unsure.
-
-**If the user chooses `n` (default):**
+Tag the milestone, then skip directly to **Print Summary** and exit 0:
 
 ```bash
-git tag -a analysis-complete-raw -m "Analysis complete: raw specs with provenance (Layers 5-7 skipped by user)"
+git tag -a analysis-complete-raw -m "Analysis complete: raw specs with provenance (Layers 1-4)"
 ```
 
-Skip directly to **Print Summary**. Exit 0.
-
-**If the user chooses `y`:**
-
-Proceed to Layer 5. Every subsequent layer runs.
-
-**If the user chooses `?`:**
-
-Print a longer explanation:
-
-```
-Sanitization (Layer 5) rewrites every raw spec from behavioral understanding,
-producing specs that contain no source identifiers. Second-pass review (Layer 6)
-then reviews the rewritten specs for residual contamination. Fidelity validation
-(Layer 7) confirms no behavioral detail was lost in the rewrite.
-
-You need this if your implementor cannot see the source (clean-room separation,
-legal/compliance requirement, third-party handoff).
-
-You do NOT need this if you have legitimate access to the source and want
-comprehensive behavioral documentation — the raw specs are strictly more
-informative, because they include provenance citations.
-
-Re-ask the question.
-```
-
-Then re-invoke the AskUserQuestion with `[y]` / `[n]`.
+**Do not prompt the user about sanitization, and do not run Layers 5–7 as part of the default flow.** Layers 5–7 (Sanitization, Second-Pass Review, Fidelity Validation) remain documented below — they rewrite the raw specs into source-free output specs in `workspace/output/` for cases where an implementor cannot see the source (clean-room separation, legal/compliance handoff). They run **only when source-free specs are explicitly requested** — most directly via the standalone `/sanitize` command, which takes this workspace and runs the sanitization pass on its own. The default `/analyze` run does not enter them.
 
 ---
 
@@ -1310,9 +1253,7 @@ git tag -a fidelity-check-complete -m "Layer 7: Fidelity validation passed (N cl
 
 ## Print Summary
 
-After pipeline completion (or failure), print a summary. Shape depends on whether the user opted in to sanitization.
-
-**Raw-only path (Layers 5–7 skipped):**
+After pipeline completion (or failure), print a summary. The default `/analyze` run stops after Layers 1–4, so the summary reflects the raw-spec path:
 
 ```
 === ANALYSIS SUMMARY ===
@@ -1324,13 +1265,13 @@ Agents dispatched: N
 Gate 1:            PASS
 Gate 1b:           PASS
 Gate 2:            PASS
-Sanitization:      SKIPPED (user opted out)
+Sanitization:      NOT RUN (Layers 5–7 are not part of the default flow)
 Output:            workspace/raw/specs/ (with provenance citations)
-Next steps:        Read raw/specs/ directly, or rerun /analyze and opt in
-                   to sanitization when you need a source-free spec.
+Next steps:        Use raw/specs/ directly. To produce source-free specs,
+                   run /sanitize on this workspace (Layers 5–7).
 ```
 
-**Full sanitization path (Layers 5–7 ran):**
+If Layers 5–7 were run (via `/sanitize` or an explicit source-free request), the summary instead reflects the full path:
 
 ```
 === ANALYSIS SUMMARY ===
@@ -1379,14 +1320,16 @@ Next steps:         Hand off workspace/output/ to the implementation team
 
 ## AFTER ANALYSIS
 
-### If the user opted out of sanitization (raw-only path)
+### Default path (Layers 1–4)
+
+The default `/analyze` run stops after Layer 4. After it finishes:
 
 1. Verify `analysis-complete-raw` tag exists.
 2. Verify `workspace/raw/specs/` contains module specs, journeys, contracts, test vectors, and acceptance criteria.
 3. The raw specs are the deliverable. Provenance citations point back to source.
-4. No Layer 5/6/7 artifacts exist — `workspace/output/` is empty or absent.
+4. No Layer 5/6/7 artifacts exist — `workspace/output/` is empty or absent. To produce source-free specs, run `/sanitize` on this workspace.
 
-### If the user opted in to sanitization (full path)
+### If Layers 5–7 were run (via `/sanitize` or an explicit source-free request)
 
 1. Verify `review-complete` tag exists (Layer 6 second-pass review passed — semantic review + deep-read)
 2. Verify `fidelity-check-complete` tag exists (Layer 7 fidelity validation — no P0 behaviors lost)
