@@ -21,6 +21,7 @@ If you previously installed greenfield from the upstream marketplace, remove tha
 
 ```bash
 /plugin uninstall greenfield@prime-radiant-marketplace
+/plugin marketplace remove prime-radiant-marketplace
 ```
 
 ### Pin to a branch, or install from a local clone
