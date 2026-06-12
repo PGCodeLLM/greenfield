@@ -1,6 +1,6 @@
 {
   "name": "greenfield",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Reverse engineer clean behavioral specs from any codebase",
   "author": {
     "name": "Prime Radiant, Inc."
